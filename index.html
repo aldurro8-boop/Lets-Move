@@ -4,402 +4,454 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Let's Move" />
-  <title>Let's Move - AI Workout Tracker</title>
+  <title>Let's Move — AI Fitness Companion</title>
 
-  <!-- MediaPipe Pose & Drawing Utils (100% Client-Side, Gratis Selamanya) -->
+  <!-- Google Fonts Inter, Lucide Icons & Chart.js -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- MediaPipe Holistic (Body Pose + Hand 5-Finger Gesture, 100% Lokal di Browser) -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
 
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 16px; }
-    
-    .header { width: 100%; max-width: 640px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .header h1 { font-size: 1.35rem; font-weight: 800; color: #38bdf8; letter-spacing: -0.5px; }
-    .badge { background: #1e293b; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; border: 1px solid #334155; }
-
-    .selector-box {
-      width: 100%; max-width: 640px; margin-bottom: 12px;
-    }
-    select {
-      width: 100%; padding: 12px 16px; border-radius: 12px; background: #1e293b;
-      color: #f8fafc; font-size: 1rem; font-weight: 600; border: 1px solid #38bdf8;
-      outline: none; cursor: pointer;
-    }
-
-    .camera-container {
-      position: relative; width: 100%; max-width: 640px; aspect-ratio: 4/3;
-      background: #000; border-radius: 16px; overflow: hidden;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 2px solid #1e293b;
-    }
-    video, canvas {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover; transform: scaleX(-1);
-    }
-
-    .hud-overlay {
-      position: absolute; top: 12px; left: 12px; right: 12px;
-      display: flex; justify-content: space-between; pointer-events: none; z-index: 10;
-    }
-    .counter-box {
-      background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(6px);
-      padding: 10px 18px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.4);
-    }
-    .counter-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
-    .counter-value { font-size: 2.5rem; font-weight: 800; color: #38bdf8; line-height: 1.1; }
-
-    .status-box {
-      background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(6px);
-      padding: 10px 14px; border-radius: 12px; text-align: right; border: 1px solid #334155;
-    }
-    .stage-text { font-size: 1.05rem; font-weight: 700; color: #fbbf24; }
-    .angle-text { font-size: 0.85rem; color: #cbd5e1; margin-top: 2px; }
-
-    .progress-bar-bg {
-      position: absolute; bottom: 0; left: 0; width: 100%; height: 8px; background: rgba(255,255,255,0.15); z-index: 10;
-    }
-    .progress-bar-fill {
-      height: 100%; width: 0%; background: #22c55e; transition: width 0.1s ease;
-    }
-
-    .controls {
-      width: 100%; max-width: 640px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;
-    }
-    button {
-      padding: 14px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600;
-      cursor: pointer; transition: transform 0.1s, opacity 0.2s;
-    }
-    button:active { transform: scale(0.97); }
-    .btn-start { background: #22c55e; color: #052e16; grid-column: span 2; }
-    .btn-reset { background: #334155; color: #f8fafc; }
-    .btn-save { background: #0284c7; color: #ffffff; }
-
-    .tips {
-      width: 100%; max-width: 640px; margin-top: 14px; background: #1e293b;
-      padding: 14px; border-radius: 12px; font-size: 0.85rem; color: #cbd5e1; line-height: 1.5;
-    }
-    .tips strong { color: #38bdf8; }
-    #loadingText {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      color: #38bdf8; font-weight: 600; text-align: center; z-index: 5; padding: 0 20px;
-    }
-  </style>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
-  <div class="header">
-    <h1>Let's Move</h1>
-    <div class="badge">Hari Ini: <strong id="todayTotal">0</strong></div>
-  </div>
-
-  <div class="selector-box">
-    <select id="exerciseSelect" onchange="changeExercise()">
-      <option value="pushup">Push-Up</option>
-      <option value="squat">Squat</option>
-      <option value="situp">Sit-Up</option>
-      <option value="jumpingjack">Jumping Jacks</option>
-    </select>
-  </div>
-
-  <div class="camera-container">
-    <div id="loadingText">Pilih gerakan lalu klik "Mulai Kamera"</div>
-    <video id="videoElement" playsinline></video>
-    <canvas id="canvasElement"></canvas>
-
-    <div class="hud-overlay">
-      <div class="counter-box">
-        <div class="counter-label" id="exerciseLabel">Push-Up</div>
-        <div class="counter-value" id="repCount">0</div>
+  <!-- ==================== 1. LAYAR PILIH PROFILE ==================== -->
+  <section id="accountScreen" class="screen active">
+    <div class="auth-container">
+      <div class="brand-header">
+        <div class="brand-badge">AI WORKOUT TRACKER</div>
+        <h1>Let's Move</h1>
+        <p>Pilih kartu profile milikmu untuk mulai mencatat progres.</p>
       </div>
-      <div class="status-box">
-        <div class="stage-text" id="stageText">SIAP</div>
-        <div class="angle-text"><span id="metricName">Sudut</span>: <span id="angleVal">-</span></div>
+
+      <div id="slotsGrid" class="slots-grid"></div>
+    </div>
+  </section>
+
+  <!-- Modal Buat Akun / Klaim Profile -->
+  <div id="claimModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="claimModalTitle">Buat Akun — Profile 1</h3>
+        <button class="icon-btn" onclick="closeModal('claimModal')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="claimForm" onsubmit="submitClaimAccount(event)">
+        <input type="hidden" id="claimSlotIndex" />
+        <div class="form-group">
+          <label>Nama Lengkap / Panggilan</label>
+          <input type="text" id="regName" required placeholder="Contoh: AlDurro" maxlength="20" />
+        </div>
+        <div class="form-group">
+          <label>Jenis Kelamin</label>
+          <select id="regGender" required>
+            <option value="Pria">Pria</option>
+            <option value="Wanita">Wanita</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Berat Badan (kg)</label>
+            <input type="number" id="regWeight" required min="30" max="200" step="0.1" placeholder="60" />
+          </div>
+          <div class="form-group">
+            <label>Tinggi Badan (cm)</label>
+            <input type="number" id="regHeight" required min="100" max="230" step="1" placeholder="170" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Buat PIN Keamanan (4 Angka)</label>
+          <input type="password" id="regPin" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" placeholder="••••" />
+          <small>PIN menjaga agar profile milikmu tidak tertukar atau diklik orang lain.</small>
+        </div>
+        <button type="submit" class="btn-primary full-width">Amankan Profile & Masuk</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Verifikasi PIN -->
+  <div id="pinModal" class="modal-backdrop hidden">
+    <div class="modal-card small">
+      <div class="modal-header">
+        <h3 id="pinModalTitle">Masukkan PIN</h3>
+        <button class="icon-btn" onclick="closeModal('pinModal')"><i data-lucide="x"></i></button>
+      </div>
+      <form onsubmit="submitVerifyPin(event)">
+        <input type="hidden" id="verifySlotIndex" />
+        <div class="form-group">
+          <label id="pinPromptLabel">Masukkan 4 angka PIN untuk membuka profile</label>
+          <input type="password" id="verifyPinInput" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" class="pin-big-input" placeholder="••••" />
+        </div>
+        <p id="pinErrorMsg" class="error-text hidden">PIN salah, coba lagi.</p>
+        <button type="submit" class="btn-primary full-width">Buka Profile</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Edit Data Profile -->
+  <div id="editProfileModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Edit Data Profile</h3>
+        <button class="icon-btn" onclick="closeModal('editProfileModal')"><i data-lucide="x"></i></button>
+      </div>
+      <form onsubmit="submitEditProfile(event)">
+        <div class="form-group">
+          <label>Nama Lengkap / Panggilan</label>
+          <input type="text" id="editName" required maxlength="20" />
+        </div>
+        <div class="form-group">
+          <label>Jenis Kelamin</label>
+          <select id="editGender" required>
+            <option value="Pria">Pria</option>
+            <option value="Wanita">Wanita</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Berat Badan (kg)</label>
+            <input type="number" id="editWeight" required min="30" max="200" step="0.1" />
+          </div>
+          <div class="form-group">
+            <label>Tinggi Badan (cm)</label>
+            <input type="number" id="editHeight" required min="100" max="230" step="1" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>PIN Keamanan (4 Angka)</label>
+          <input type="password" id="editPin" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" />
+          <small>Ubah 4 angka PIN jika diperlukan, atau biarkan PIN saat ini.</small>
+        </div>
+        <button type="submit" class="btn-primary full-width">Simpan Perubahan Profile</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 2. APLIKASI UTAMA (4 TAB) ==================== -->
+  <main id="mainApp" class="hidden">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="user-pill" onclick="switchAccount()">
+        <div class="avatar-circle" id="headerAvatar">A</div>
+        <div>
+          <span class="user-greeting">Halo, <strong id="headerUserName">User</strong></span>
+          <span class="user-sub" id="headerUserMeta">Pria • 60 kg • 170 cm</span>
+        </div>
+      </div>
+      <button class="btn-outline-sm" onclick="switchAccount()">
+        <i data-lucide="users"></i> Ganti Profile
+      </button>
+    </header>
+
+    <!-- TAB 1: LATIHAN (WORKOUT) -->
+    <section id="tab-workout" class="tab-content active">
+      <div class="section-title-row">
+        <h2>Pilih Gerakan</h2>
+        <span class="pill-badge" id="exerciseCountBadge">14 Gerakan</span>
+      </div>
+
+      <!-- Kategori Filter -->
+      <div class="filter-chips">
+        <button class="chip active" onclick="filterExercises('all', this)">Semua</button>
+        <button class="chip" onclick="filterExercises('upper', this)">Upper Body</button>
+        <button class="chip" onclick="filterExercises('lower', this)">Lower Body</button>
+        <button class="chip" onclick="filterExercises('core', this)">Core & Cardio</button>
+      </div>
+
+      <!-- Grid Gerakan -->
+      <div id="exerciseGrid" class="exercise-grid"></div>
+
+      <!-- Panel Detail Gerakan, Ilustrasi Step & Pengaturan Set -->
+      <div id="workoutSetupCard" class="card setup-card">
+        <div class="setup-header">
+          <div>
+            <span class="category-tag" id="selectedCategoryTag">UPPER BODY</span>
+            <h3 id="selectedExName">Push-Up</h3>
+          </div>
+          <span class="mode-tag" id="selectedExMode">Penghitung Repetisi</span>
+        </div>
+
+        <!-- Ilustrasi Step Melakukan Gerakan -->
+        <div class="steps-box">
+          <div class="steps-label"><i data-lucide="eye"></i> Panduan Posisi & Langkah Gerakan</div>
+          <div id="exerciseStepsVisual" class="steps-visual-container"></div>
+          <p id="exerciseCameraTip" class="camera-tip-text"></p>
+        </div>
+
+        <!-- Pengaturan Set & Rest Timer -->
+        <div class="set-config-grid">
+          <div class="form-group">
+            <label>Jenis Set</label>
+            <select id="setTypeSelect" onchange="toggleSupersetField()">
+              <option value="Normal Set">Normal Set</option>
+              <option value="Warm-up">Warm-up (Pemanasan)</option>
+              <option value="Superset">Superset (2 Gerakan Beruntun)</option>
+              <option value="Drop Set">Drop Set</option>
+              <option value="Failure Set">Failure Set (Maksimal)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rest Timer (Detik)</label>
+            <input type="number" id="restDurationInput" value="60" min="10" max="300" step="5" />
+          </div>
+        </div>
+
+        <!-- Pilihan Gerakan Kedua jika Superset -->
+        <div id="supersetPairBox" class="form-group hidden">
+          <label>Pasangan Gerakan Superset (Tanpa Istirahat)</label>
+          <select id="supersetSecondExercise"></select>
+        </div>
+
+        <div class="gesture-info-banner">
+          <i data-lucide="hand"></i>
+          <span>Tunjukkan <strong>5 jari terbuka</strong> ke kamera selama 1,5 detik untuk memulai/mengakhiri <strong>Rest Timer</strong> secara otomatis.</span>
+        </div>
+
+        <button class="btn-primary full-width btn-lg" onclick="launchCameraSession()">
+          <i data-lucide="camera"></i> Mulai Sesi Kamera AI
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB 2: PROGRAM ADAPTIF AI -->
+    <section id="tab-program" class="tab-content">
+      <div class="card highlight-card">
+        <div class="card-icon-header">
+          <i data-lucide="sparkles"></i>
+          <div>
+            <h3>Rencana Adaptif AI</h3>
+            <p class="muted-text">Disusun otomatis berdasarkan BMI & riwayat 7 hari terakhir.</p>
+          </div>
+        </div>
+        <div id="aiWeeklyPlanList" class="plan-list"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: STATISTIK 30 HARI & PENGUKURAN TUBUH -->
+    <section id="tab-stats" class="tab-content">
+      <div class="stats-dashboard-title">
+        <h2>PROGRES LATIHAN 30 HARI</h2>
+      </div>
+
+      <!-- Kartu 1: Grouped Bar Chart (Minggu 1 - Minggu 4) -->
+      <div class="card">
+        <div class="stats-card-header">
+          <div>
+            <h3>Volume Per Kategori Otot</h3>
+            <p class="muted-text">Dihitung mulai Minggu 1 sejak sesi latihan pertamamu.</p>
+          </div>
+          <div class="stats-badge-stack">
+            <button class="btn-reset-tiny" onclick="resetChartData()" title="Reset Data Grafik">
+              <i data-lucide="trash-2"></i>
+            </button>
+            <span class="pill-badge" id="goalProgressBadge">0 / 30 Hari</span>
+          </div>
+        </div>
+
+        <!-- Legenda Warna Kategori -->
+        <div class="chart-legend-custom">
+          <span><i class="dot-legend" style="background:#166b0e;"></i> Upper Body</span>
+          <span><i class="dot-legend" style="background:#94bf4e;"></i> Lower Body</span>
+          <span><i class="dot-legend" style="background:#2b8cbe;"></i> Core & Cardio</span>
+        </div>
+
+        <!-- Grouped Bar Chart Canvas -->
+        <div class="chart-wrapper">
+          <canvas id="thirtyDayChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Kartu 2: 2 Ring Donut Charts -->
+      <div class="ring-cards-grid">
+        <div class="card ring-card">
+          <div class="ring-info">
+            <h4>Konsistensi 30 Hari</h4>
+            <p id="ringConsistencyDesc">0 dari 30 hari target latihan tercapai.</p>
+          </div>
+          <div class="ring-canvas-box">
+            <canvas id="consistencyRingChart"></canvas>
+            <span class="ring-center-text" id="ringConsistencyPct">0%</span>
+          </div>
+        </div>
+
+        <div class="card ring-card">
+          <div class="ring-info">
+            <h4>Target Volume</h4>
+            <p id="ringVolumeDesc">0 dari 1.000 total repetisi bulanan.</p>
+          </div>
+          <div class="ring-canvas-box">
+            <canvas id="volumeRingChart"></canvas>
+            <span class="ring-center-text" id="ringVolumePct">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kartu 3: Catatan Berat & Lingkar Tubuh -->
+      <div class="card">
+        <h3>Catatan Berat & Lingkar Tubuh</h3>
+        <div class="form-row" style="margin-top:12px;">
+          <div class="form-group">
+            <label>Berat Badan (kg)</label>
+            <input type="number" id="logWeight" step="0.1" placeholder="60.0" />
+          </div>
+          <div class="form-group">
+            <label>Lingkar Pinggang (cm)</label>
+            <input type="number" id="logWaist" step="0.5" placeholder="78.0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Lingkar Dada (cm)</label>
+            <input type="number" id="logChest" step="0.5" placeholder="92.0" />
+          </div>
+          <div class="form-group">
+            <label>Lingkar Lengan (cm)</label>
+            <input type="number" id="logArm" step="0.5" placeholder="31.0" />
+          </div>
+        </div>
+        <button class="btn-primary full-width btn-lg" onclick="saveBodyMetrics()">
+          <i data-lucide="save"></i> Simpan Catatan Tubuh
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB 4: KARTU IDENTITAS PROFIL -->
+    <section id="tab-profile" class="tab-content">
+      <div class="id-card-box">
+        <div class="id-card-top">
+          <span class="id-brand">LET'S MOVE MEMBER CARD</span>
+          <span class="id-slot-tag" id="profileSlotTag">PROFILE 1</span>
+        </div>
+        <div class="id-card-body">
+          <div class="id-avatar-lg" id="profileAvatarLg">A</div>
+          <div>
+            <h2 id="profileNameLg">AlDurro</h2>
+            <p id="profileDetailsLg">Pria • 60 kg • 170 cm</p>
+          </div>
+        </div>
+        <div class="id-card-stats">
+          <div>
+            <span class="stat-num" id="statTotalWorkouts">0</span>
+            <span class="stat-lbl">Sesi (30 Hr)</span>
+          </div>
+          <div>
+            <span class="stat-num" id="statTotalReps">0</span>
+            <span class="stat-lbl">Total Repetisi</span>
+          </div>
+          <div>
+            <span class="stat-num" id="statStreak">0/30</span>
+            <span class="stat-lbl">Target Hari</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-actions-stack">
+        <button class="btn-primary full-width" onclick="openEditProfileModal()">
+          <i data-lucide="user-pen"></i> Edit Data & Berat Badan
+        </button>
+        <button class="btn-outline full-width" onclick="shareProgressCard()">
+          <i data-lucide="share-2"></i> Salin Kartu Progres untuk WhatsApp
+        </button>
+      </div>
+    </section>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" onclick="switchTab('workout', this)">
+        <i data-lucide="dumbbell"></i>
+        <span>Latihan</span>
+      </button>
+      <button class="nav-item" onclick="switchTab('program', this)">
+        <i data-lucide="calendar-check"></i>
+        <span>Program AI</span>
+      </button>
+      <button class="nav-item" onclick="switchTab('stats', this)">
+        <i data-lucide="bar-chart-2"></i>
+        <span>Statistik</span>
+      </button>
+      <button class="nav-item" onclick="switchTab('profile', this)">
+        <i data-lucide="id-card"></i>
+        <span>Profile</span>
+      </button>
+    </nav>
+  </main>
+
+  <!-- ==================== 3. LAYAR FULLSCREEN KAMERA AI ==================== -->
+  <div id="cameraModal" class="camera-screen hidden">
+    <video id="aiVideo" playsinline></video>
+    <canvas id="aiCanvas"></canvas>
+
+    <div id="aiLoadingOverlay" class="cam-loading">Menyiapkan Kamera & Model AI...</div>
+
+    <!-- HUD Atas -->
+    <div class="cam-hud-top">
+      <div class="cam-counter-card">
+        <span class="cam-badge" id="camSetBadge">NORMAL SET</span>
+        <h3 id="camExName">Push-Up</h3>
+        <div class="cam-big-num" id="camMainCounter">0</div>
+        <span class="cam-unit" id="camUnitLabel">REPETISI</span>
+        <div class="cam-realtime-clock" id="camSessionClock">00:00:00</div>
+      </div>
+
+      <div class="cam-status-card">
+        <div class="cam-stage" id="camStageStatus">SIAP</div>
+        <div class="cam-metric">Sudut/Status: <strong id="camMetricVal">-</strong></div>
+        <button class="cam-rest-manual-btn" onclick="toggleRestTimerByGesture()">
+          <i data-lucide="timer"></i> Rest Timer
+        </button>
       </div>
     </div>
 
-    <div class="progress-bar-bg">
-      <div class="progress-bar-fill" id="depthBar"></div>
+    <!-- Indikator Tahan Gestur 5 Jari -->
+    <div id="gestureHoldIndicator" class="gesture-hold-box hidden">
+      <span>✋ Tahan 5 Jari untuk Rest Timer...</span>
+      <div class="gesture-bar-bg">
+        <div id="gestureHoldFill" class="gesture-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- Overlay Rest Timer Aktif -->
+    <div id="restTimerOverlay" class="rest-overlay hidden">
+      <div class="rest-card">
+        <span class="rest-tag">WAKTU ISTIRAHAT</span>
+        <div class="rest-countdown" id="restCountdownText">60d</div>
+        <p>Tunjukkan <strong>5 jari terbuka</strong> lagi (1,5 detik) atau tekan tombol di bawah untuk lanjut latihan.</p>
+        <button class="btn-primary full-width" onclick="stopRestTimer()">Lanjut Latihan Sekarang</button>
+      </div>
+    </div>
+
+    <!-- Bar Kedalaman Gerakan -->
+    <div class="cam-depth-track">
+      <div id="camDepthFill" class="cam-depth-fill"></div>
+    </div>
+
+    <!-- Tombol Kontrol Bawah Kamera -->
+    <div class="cam-controls-bottom">
+      <button id="btnNextSuperset" class="btn-superset-next hidden" onclick="switchToSupersetSecond()">
+        Lanjut Gerakan ke-2 &rarr;
+      </button>
+      <div class="cam-action-row">
+        <button class="btn-cancel-home" onclick="cancelCameraSession()">
+          <i data-lucide="x"></i> Cancel
+        </button>
+        <button class="btn-finish-session" onclick="finishCameraSession()">
+          <i data-lucide="check"></i> Submit
+        </button>
+      </div>
     </div>
   </div>
 
-  <div class="controls">
-    <button class="btn-start" id="startBtn" onclick="startApp()">Mulai Kamera</button>
-    <button class="btn-reset" onclick="resetSession()">Reset Sesi</button>
-    <button class="btn-save" onclick="saveToHistory()">Simpan ke Total Hari Ini</button>
-  </div>
-
-  <div class="tips" id="tipText">
-    <strong>Tips Push-Up:</strong> Posisikan kamera di lantai dari arah <strong>samping atau serong depan</strong> agar bahu, siku, dan pergelangan tangan terlihat jelas.
-  </div>
-
-  <script>
-    const videoElement = document.getElementById('videoElement');
-    const canvasElement = document.getElementById('canvasElement');
-    const canvasCtx = canvasElement.getContext('2d');
-    const repCountEl = document.getElementById('repCount');
-    const stageTextEl = document.getElementById('stageText');
-    const angleValEl = document.getElementById('angleVal');
-    const metricNameEl = document.getElementById('metricName');
-    const depthBarEl = document.getElementById('depthBar');
-    const loadingText = document.getElementById('loadingText');
-    const startBtn = document.getElementById('startBtn');
-    const todayTotalEl = document.getElementById('todayTotal');
-    const exerciseSelect = document.getElementById('exerciseSelect');
-    const exerciseLabel = document.getElementById('exerciseLabel');
-    const tipText = document.getElementById('tipText');
-
-    let currentExercise = 'pushup';
-    let count = 0;
-    let stage = "UP";
-    let isRunning = false;
-
-    const exerciseConfig = {
-      pushup: {
-        name: "Push-Up",
-        metric: "Sudut Siku",
-        tip: "<strong>Tips Push-Up:</strong> Posisikan kamera di lantai dari arah <strong>samping atau serong depan</strong> agar bahu, siku, dan pergelangan tangan terlihat jelas."
-      },
-      squat: {
-        name: "Squat",
-        metric: "Sudut Lutut",
-        tip: "<strong>Tips Squat:</strong> Berdiri sekitar 2 meter dari kamera (sudut <strong>serong depan atau samping</strong>) agar pinggul, lutut, dan pergelangan kaki terlihat penuh."
-      },
-      situp: {
-        name: "Sit-Up",
-        metric: "Sudut Pinggul",
-        tip: "<strong>Tips Sit-Up:</strong> Posisikan kamera dari <strong>arah samping</strong> agar tubuh bagian atas (bahu), pinggul, dan lutut yang ditekuk terlihat jelas."
-      },
-      jumpingjack: {
-        name: "Jumping Jacks",
-        metric: "Bukaan Tangan",
-        tip: "<strong>Tips Jumping Jacks:</strong> Berdiri menghadap <strong>lurus ke depan kamera</strong> dari jarak 2-2,5 meter agar seluruh tubuh dari kepala sampai kaki masuk layar."
-      }
-    };
-
-    const todayKey = new Date().toISOString().slice(0, 10);
-
-    function loadTodayTotal() {
-      const saved = parseInt(localStorage.getItem(`letsmove_${currentExercise}_${todayKey}`) || '0');
-      todayTotalEl.innerText = saved;
-    }
-    loadTodayTotal();
-
-    function speak(text) {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'id-ID';
-        utterance.rate = 1.1;
-        window.speechSynthesis.speak(utterance);
-      }
-    }
-
-    function changeExercise() {
-      currentExercise = exerciseSelect.value;
-      const cfg = exerciseConfig[currentExercise];
-      exerciseLabel.innerText = cfg.name;
-      metricNameEl.innerText = cfg.metric;
-      tipText.innerHTML = cfg.tip;
-      resetSession();
-      loadTodayTotal();
-      if (isRunning) speak("Mode " + cfg.name);
-    }
-
-    function calculateAngle(a, b, c) {
-      const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
-      let angle = Math.abs(radians * 180.0 / Math.PI);
-      if (angle > 180.0) angle = 360 - angle;
-      return Math.round(angle);
-    }
-
-    // Pilih sisi tubuh (kiri/kanan) yang visibilitasnya paling jelas
-    function getBestSide(lm, leftIdx, rightIdx) {
-      const lVis = leftIdx.reduce((sum, i) => sum + lm[i].visibility, 0) / leftIdx.length;
-      const rVis = rightIdx.reduce((sum, i) => sum + lm[i].visibility, 0) / rightIdx.length;
-      if (lVis < 0.5 && rVis < 0.5) return null;
-      return lVis >= rVis ? leftIdx.map(i => lm[i]) : rightIdx.map(i => lm[i]);
-    }
-
-    function onResults(results) {
-      loadingText.style.display = 'none';
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
-
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-      if (results.poseLandmarks) {
-        drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, { color: '#38bdf8', lineWidth: 3 });
-        drawLandmarks(canvasCtx, results.poseLandmarks, { color: '#22c55e', lineWidth: 2, radius: 4 });
-
-        const lm = results.poseLandmarks;
-
-        if (currentExercise === 'pushup') {
-          // Bahu (11/12), Siku (13/14), Pergelangan Tangan (15/16)
-          const pts = getBestSide(lm, [11, 13, 15], [12, 14, 16]);
-          if (pts) {
-            const angle = calculateAngle(pts[0], pts[1], pts[2]);
-            angleValEl.innerText = angle + "°";
-            depthBarEl.style.width = Math.min(100, Math.max(0, ((160 - angle) / 75) * 100)) + '%';
-
-            if (angle <= 90) {
-              stage = "DOWN";
-              stageTextEl.innerText = "BAWAH (DORONG!)";
-              stageTextEl.style.color = "#22c55e";
-            }
-            if (angle >= 155 && stage === "DOWN") {
-              stage = "UP";
-              incrementRep();
-            }
-          } else {
-            showOutOfFrame();
-          }
-
-        } else if (currentExercise === 'squat') {
-          // Pinggul (23/24), Lutut (25/26), Pergelangan Kaki (27/28)
-          const pts = getBestSide(lm, [23, 25, 27], [24, 26, 28]);
-          if (pts) {
-            const angle = calculateAngle(pts[0], pts[1], pts[2]);
-            angleValEl.innerText = angle + "°";
-            depthBarEl.style.width = Math.min(100, Math.max(0, ((170 - angle) / 80) * 100)) + '%';
-
-            if (angle <= 95) {
-              stage = "DOWN";
-              stageTextEl.innerText = "BAWAH (NAIK!)";
-              stageTextEl.style.color = "#22c55e";
-            }
-            if (angle >= 160 && stage === "DOWN") {
-              stage = "UP";
-              incrementRep();
-            }
-          } else {
-            showOutOfFrame();
-          }
-
-        } else if (currentExercise === 'situp') {
-          // Bahu (11/12), Pinggul (23/24), Lutut (25/26)
-          const pts = getBestSide(lm, [11, 23, 25], [12, 24, 26]);
-          if (pts) {
-            const angle = calculateAngle(pts[0], pts[1], pts[2]);
-            angleValEl.innerText = angle + "°";
-            depthBarEl.style.width = Math.min(100, Math.max(0, ((130 - angle) / 75) * 100)) + '%';
-
-            if (angle <= 65) {
-              stage = "UP_CRUNCH";
-              stageTextEl.innerText = "PUNCAK (TURUN!)";
-              stageTextEl.style.color = "#22c55e";
-            }
-            if (angle >= 125 && stage === "UP_CRUNCH") {
-              stage = "DOWN_FLAT";
-              incrementRep();
-            }
-          } else {
-            showOutOfFrame();
-          }
-
-        } else if (currentExercise === 'jumpingjack') {
-          // Cek posisi tangan di atas kepala & kaki terbuka (tampak depan)
-          const lWrist = lm[15], rWrist = lm[16], nose = lm[0];
-          const lAnkle = lm[27], rAnkle = lm[28], lHip = lm[23], rHip = lm[24];
-
-          if (lWrist.visibility > 0.5 && rWrist.visibility > 0.5 && lAnkle.visibility > 0.5 && rAnkle.visibility > 0.5) {
-            // Sudut lengan terhadap badan (Pinggul -> Bahu -> Pergelangan Tangan)
-            const leftArmAngle = calculateAngle(lm[23], lm[11], lm[15]);
-            const rightArmAngle = calculateAngle(lm[24], lm[12], lm[16]);
-            const avgArmAngle = Math.round((leftArmAngle + rightArmAngle) / 2);
-
-            // Jarak kaki dibanding lebar pinggul
-            const ankleDist = Math.abs(lAnkle.x - rAnkle.x);
-            const hipWidth = Math.abs(lHip.x - rHip.x);
-            const legSpreadRatio = ankleDist / (hipWidth || 0.1);
-
-            angleValEl.innerText = avgArmAngle + "°";
-            depthBarEl.style.width = Math.min(100, Math.max(0, ((avgArmAngle - 20) / 130) * 100)) + '%';
-
-            if (avgArmAngle >= 145 && legSpreadRatio >= 1.4) {
-              stage = "OPEN";
-              stageTextEl.innerText = "TERBUKA (TUTUP!)";
-              stageTextEl.style.color = "#22c55e";
-            }
-            if (avgArmAngle <= 45 && legSpreadRatio <= 1.2 && stage === "OPEN") {
-              stage = "CLOSED";
-              incrementRep();
-            }
-          } else {
-            showOutOfFrame();
-          }
-        }
-      }
-      canvasCtx.restore();
-    }
-
-    function incrementRep() {
-      count++;
-      repCountEl.innerText = count;
-      stageTextEl.innerText = "BAGUS!";
-      stageTextEl.style.color = "#38bdf8";
-      speak(count.toString());
-    }
-
-    function showOutOfFrame() {
-      stageTextEl.innerText = "POSISIKAN TUBUH";
-      stageTextEl.style.color = "#f87171";
-      angleValEl.innerText = "-";
-    }
-
-    const pose = new Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-    });
-
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-    pose.onResults(onResults);
-
-    async function startApp() {
-      if (isRunning) return;
-      isRunning = true;
-      startBtn.style.display = 'none';
-      loadingText.innerText = "Memuat model AI (hanya beberapa detik)...";
-
-      const camera = new Camera(videoElement, {
-        onFrame: async () => {
-          await pose.send({ image: videoElement });
-        },
-        facingMode: 'user',
-        width: 640,
-        height: 480
-      });
-      camera.start();
-      speak("Let's Move aktif, silakan mulai");
-    }
-
-    function resetSession() {
-      count = 0;
-      stage = "READY";
-      repCountEl.innerText = "0";
-      stageTextEl.innerText = "SIAP";
-      stageTextEl.style.color = "#fbbf24";
-      depthBarEl.style.width = "0%";
-    }
-
-    function saveToHistory() {
-      if (count === 0) return;
-      const key = `letsmove_${currentExercise}_${todayKey}`;
-      const currentSaved = parseInt(localStorage.getItem(key) || '0');
-      const newTotal = currentSaved + count;
-      localStorage.setItem(key, newTotal);
-      todayTotalEl.innerText = newTotal;
-      speak(`Tersimpan. Total ${exerciseConfig[currentExercise].name} hari ini ${newTotal}`);
-      resetSession();
-    }
-  </script>
+  <script src="js/data.js"></script>
+  <script src="js/ai-camera.js"></script>
+  <script src="js/ai-planner.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
