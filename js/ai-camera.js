@@ -22,6 +22,7 @@ let lastRepTimestamp = 0;
 // Realtime Stopwatch HH:MM:SS
 let sessionElapsedSeconds = 0;
 let sessionClockInterval = null;
+let isSessionClockRunning = false;
 
 // Status Rest Timer & Gestur 5 Jari
 let isResting = false;
@@ -71,14 +72,23 @@ function formatHHMMSS(totalSec) {
   return [hrs, mins, secs].map(v => String(v).padStart(2, '0')).join(':');
 }
 
-function startSessionClock() {
+function resetSessionClock() {
   sessionElapsedSeconds = 0;
-  document.getElementById('camSessionClock').innerText = '00:00:00';
+  isSessionClockRunning = false;
+  clearInterval(sessionClockInterval);
+  const clockEl = document.getElementById('camSessionClock');
+  if (clockEl) clockEl.innerText = '00:00:00';
+}
+
+function triggerSessionClock() {
+  if (isSessionClockRunning) return;
+  isSessionClockRunning = true;
   clearInterval(sessionClockInterval);
   sessionClockInterval = setInterval(() => {
-    if (isCameraActive && !isResting) {
+    if (isCameraActive) { // Tetap berjalan walaupun isResting = true
       sessionElapsedSeconds++;
-      document.getElementById('camSessionClock').innerText = formatHHMMSS(sessionElapsedSeconds);
+      const clockEl = document.getElementById('camSessionClock');
+      if (clockEl) clockEl.innerText = formatHHMMSS(sessionElapsedSeconds);
     }
   }, 1000);
 }
@@ -105,7 +115,7 @@ async function startAICameraSession(primaryEx, setType, restSeconds, secondaryEx
 
   document.getElementById('cameraModal').classList.remove('hidden');
   updateCameraHUDLabels();
-  startSessionClock();
+  resetSessionClock();
 
   const videoEl = document.getElementById('aiVideo');
   const statusEl = document.getElementById('aiLoadingOverlay');
@@ -459,6 +469,10 @@ function processExerciseLogic(lm, deltaSec) {
       holdTimerSeconds += deltaSec;
       const currSec = Math.floor(holdTimerSeconds);
 
+      if (currSec >= 1) {
+        triggerSessionClock();
+      }
+
       document.getElementById('camMainCounter').innerText = currSec;
       stageEl.innerText = 'TAHAN POSISI!';
       stageEl.style.color = '#94bf4e';
@@ -490,6 +504,10 @@ function processExerciseLogic(lm, deltaSec) {
       holdTimerSeconds += deltaSec;
       const currSec = Math.floor(holdTimerSeconds);
 
+      if (currSec >= 1) {
+        triggerSessionClock();
+      }
+
       document.getElementById('camMainCounter').innerText = currSec;
       stageEl.innerText = 'MENGGANTUNG AKTIF';
       stageEl.style.color = '#94bf4e';
@@ -513,6 +531,8 @@ function addRepetition() {
   lastRepTimestamp = now;
 
   repCounter++;
+  triggerSessionClock();
+
   document.getElementById('camMainCounter').innerText = repCounter;
   document.getElementById('camStageStatus').innerText = 'BAGUS!';
   speakVoice(repCounter.toString());
@@ -569,6 +589,7 @@ function stopRestTimer() {
 function cleanupCameraResources() {
   isCameraActive = false;
   isResting = false;
+  isSessionClockRunning = false;
   clearInterval(restInterval);
   clearInterval(sessionClockInterval);
 

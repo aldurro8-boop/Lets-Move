@@ -1,80 +1,200 @@
-// ==================== INISIALISASI 5 PROFILE ====================
+// ==================== MANAJEMEN 5 PROFILE, NAVIGASI TAB & STATISTIK ====================
+const STORAGE_KEY = 'letsMove_clean_v5';
+const DEV_MASTER_CODE = 'MDkwOTAz'; // Verifikasi PIN Developer 6 Angka
+
 const DEFAULT_SLOTS = [
-  { slotIndex: 0, presetName: 'AlDurro', claimed: false, data: null },
-  { slotIndex: 1, presetName: 'Hani', claimed: false, data: null },
-  { slotIndex: 2, presetName: 'Profile 3', claimed: false, data: null },
-  { slotIndex: 3, presetName: 'Profile 4', claimed: false, data: null },
-  { slotIndex: 4, presetName: 'Profile 5', claimed: false, data: null }
+  { index: 0, label: 'Profile 1', claimed: false, data: null },
+  { index: 1, label: 'Profile 2', claimed: false, data: null },
+  { index: 2, label: 'Profile 3', claimed: false, data: null },
+  { index: 3, label: 'Profile 4', claimed: false, data: null },
+  { index: 4, label: 'Profile 5', claimed: false, data: null }
 ];
 
-let slotsState = JSON.parse(localStorage.getItem('letsmove_slots_v2')) || DEFAULT_SLOTS;
+let slotsState = loadSlotsFromStorage();
 let activeUserSlot = null;
-let selectedExerciseId = 'pushup';
+let currentFilter = 'all';
+let selectedExerciseId = typeof EXERCISES_DATA !== 'undefined' && EXERCISES_DATA.length > 0 ? EXERCISES_DATA[0].id : 'pushup';
 let thirtyDayChartInstance = null;
 let consistencyRingInstance = null;
 let volumeRingInstance = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-  lucide.createIcons();
-  renderSlots();
-  renderExercises('all');
-  selectExercise('pushup');
-  populateSupersetDropdown();
-});
-
-function saveSlotsToStorage() {
-  localStorage.setItem('letsmove_slots_v2', JSON.stringify(slotsState));
+function refreshIcons() {
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
 }
 
-// ==================== RENDER 5 KARTU PROFILE ====================
-function renderSlots() {
+function safeSetText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = text;
+}
+
+function safeSetValue(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+function loadSlotsFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length === 5) return parsed;
+    }
+  } catch (e) {
+    console.warn('Gagal memuat data penyimpanan:', e);
+  }
+  return JSON.parse(JSON.stringify(DEFAULT_SLOTS));
+}
+
+function saveSlotsToStorage() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(slotsState));
+}
+
+// ==================== 1. RENDER LAYAR PILIH PROFILE ====================
+function renderAccountSlots() {
   const grid = document.getElementById('slotsGrid');
+  if (!grid) return;
   grid.innerHTML = '';
 
   slotsState.forEach((slot, idx) => {
     const card = document.createElement('div');
     if (slot.claimed && slot.data) {
-      const heightText = slot.data.height ? ` • ${slot.data.height} cm` : '';
       card.className = 'slot-card claimed';
       card.onclick = () => openPinModal(idx);
       card.innerHTML = `
-        <div class="slot-left">
-          <div class="slot-number">${slot.data.name.charAt(0).toUpperCase()}</div>
-          <div class="slot-info">
-            <h4>${slot.data.name}</h4>
-            <p>Profile ${idx + 1} • ${slot.data.gender} • ${slot.data.weight} kg${heightText}</p>
-          </div>
+        <div class="slot-number">${slot.data.name.charAt(0).toUpperCase()}</div>
+        <div class="slot-info">
+          <h3>${slot.data.name}</h3>
+          <p>Profile ${idx + 1} • ${slot.data.gender} • ${slot.data.weight} kg • ${slot.data.height} cm</p>
         </div>
-        <i data-lucide="lock" style="color:#166b0e; width:18px;"></i>
+        <div class="slot-lock"><i data-lucide="lock"></i></div>
       `;
     } else {
       card.className = 'slot-card empty';
-      const displayTitle = idx < 2 ? `${slot.presetName} (Profile ${idx + 1})` : `Profile ${idx + 1} (Kosong)`;
+      card.onclick = () => openClaimModal(idx);
       card.innerHTML = `
-        <div class="slot-left">
-          <div class="slot-number">#${idx + 1}</div>
-          <div class="slot-info">
-            <h4>${displayTitle}</h4>
-            <p>Tersedia untuk dibuat</p>
-          </div>
+        <div class="slot-num">${idx + 1}</div>
+        <div class="slot-info">
+          <h3>Profile ${idx + 1}</h3>
+          <p>Tersedia untuk dibuat</p>
         </div>
-        <button class="btn-claim" onclick="openClaimModal(${idx})">Buat Akun</button>
+        <button class="btn-claim" type="button">Buat Akun</button>
       `;
     }
     grid.appendChild(card);
   });
-  lucide.createIcons();
+
+  refreshIcons();
 }
 
-function openClaimModal(idx) {
-  const slot = slotsState[idx];
-  document.getElementById('claimSlotIndex').value = idx;
-  document.getElementById('claimModalTitle').innerText = `Buat Akun — Profile ${idx + 1}`;
-  document.getElementById('regName').value = idx < 2 ? slot.presetName : '';
-  document.getElementById('regWeight').value = '';
-  document.getElementById('regHeight').value = '';
-  document.getElementById('regPin').value = '';
-  document.getElementById('claimModal').classList.remove('hidden');
+// ==================== 1B. KELOLA AKUN KHUSUS DEVELOPER ====================
+function openDevAuthModal() {
+  safeSetValue('devPinInput', '');
+  const errEl = document.getElementById('devPinErrorMsg');
+  if (errEl) errEl.classList.add('hidden');
+  const modal = document.getElementById('devAuthModal');
+  if (modal) modal.classList.remove('hidden');
+  setTimeout(() => {
+    const inp = document.getElementById('devPinInput');
+    if (inp) inp.focus();
+  }, 100);
+  refreshIcons();
+}
+
+function submitDevAuth(e) {
+  e.preventDefault();
+  const entered = document.getElementById('devPinInput').value.trim();
+  if (btoa(entered) === DEV_MASTER_CODE) {
+    closeModal('devAuthModal');
+    openDevManageModal();
+  } else {
+    const errEl = document.getElementById('devPinErrorMsg');
+    if (errEl) errEl.classList.remove('hidden');
+  }
+}
+
+function openDevManageModal() {
+  renderDevSlotsList();
+  const modal = document.getElementById('devManageModal');
+  if (modal) modal.classList.remove('hidden');
+  refreshIcons();
+}
+
+function renderDevSlotsList() {
+  const list = document.getElementById('devSlotsList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  slotsState.forEach((slot, idx) => {
+    const row = document.createElement('div');
+    row.className = 'dev-slot-row';
+
+    if (slot.claimed && slot.data) {
+      row.innerHTML = `
+        <div class="dev-slot-info">
+          <strong>Profile ${idx + 1}: ${slot.data.name}</strong>
+          <span>${slot.data.gender} • ${slot.data.weight} kg • PIN: ${slot.data.pin}</span>
+        </div>
+        <div class="dev-slot-actions">
+          <button type="button" class="btn-dev-reset" onclick="devResetUserPin(${idx})">Reset PIN</button>
+          <button type="button" class="btn-dev-delete" onclick="devDeleteSlot(${idx})">Hapus</button>
+        </div>
+      `;
+    } else {
+      row.innerHTML = `
+        <div class="dev-slot-info">
+          <strong>Profile ${idx + 1}</strong>
+          <span>Kosong (Tersedia)</span>
+        </div>
+      `;
+    }
+    list.appendChild(row);
+  });
+}
+
+function devResetUserPin(slotIdx) {
+  const user = slotsState[slotIdx].data;
+  if (!user) return;
+  const newPin = prompt(`Masukkan 4 angka PIN baru untuk ${user.name} (Profile ${slotIdx + 1}):`, '0000');
+  if (newPin === null) return;
+
+  if (!/^\d{4}$/.test(newPin.trim())) {
+    alert('Gagal: PIN harus terdiri dari 4 angka.');
+    return;
+  }
+
+  user.pin = newPin.trim();
+  saveSlotsToStorage();
+  renderDevSlotsList();
+  alert(`PIN untuk ${user.name} berhasil diubah menjadi ${user.pin}.`);
+}
+
+function devDeleteSlot(slotIdx) {
+  const user = slotsState[slotIdx].data;
+  if (!user) return;
+  if (!confirm(`Hapus permanen akun "${user.name}" di Profile ${slotIdx + 1}?`)) return;
+
+  slotsState[slotIdx] = {
+    index: slotIdx,
+    label: `Profile ${slotIdx + 1}`,
+    claimed: false,
+    data: null
+  };
+
+  saveSlotsToStorage();
+  renderAccountSlots();
+  renderDevSlotsList();
+}
+
+function openClaimModal(slotIdx) {
+  safeSetValue('claimSlotIndex', slotIdx);
+  safeSetText('claimModalTitle', `Buat Akun — Profile ${slotIdx + 1}`);
+  const form = document.getElementById('claimForm');
+  if (form) form.reset();
+  const modal = document.getElementById('claimModal');
+  if (modal) modal.classList.remove('hidden');
+  refreshIcons();
 }
 
 function submitClaimAccount(e) {
@@ -83,8 +203,13 @@ function submitClaimAccount(e) {
   const name = document.getElementById('regName').value.trim();
   const gender = document.getElementById('regGender').value;
   const weight = parseFloat(document.getElementById('regWeight').value);
-  const height = parseInt(document.getElementById('regHeight').value);
-  const pin = document.getElementById('regPin').value;
+  const height = parseFloat(document.getElementById('regHeight').value);
+  const pin = document.getElementById('regPin').value.trim();
+
+  if (!/^\d{4}$/.test(pin)) {
+    alert('PIN harus terdiri dari 4 angka.');
+    return;
+  }
 
   slotsState[idx].claimed = true;
   slotsState[idx].data = {
@@ -93,93 +218,359 @@ function submitClaimAccount(e) {
     weight,
     height,
     pin,
-    createdAt: new Date().toISOString(),
     cycleStartDate: null,
     workouts: [],
-    bodyMetrics: []
+    metrics: [
+      {
+        date: new Date().toISOString().split('T')[0],
+        weight,
+        waist: 78,
+        chest: 92,
+        arm: 31
+      }
+    ]
   };
 
   saveSlotsToStorage();
   closeModal('claimModal');
+  renderAccountSlots();
   loginIntoSlot(idx);
 }
 
-function openPinModal(idx) {
-  const slot = slotsState[idx];
-  document.getElementById('verifySlotIndex').value = idx;
-  document.getElementById('pinModalTitle').innerText = `Halo, ${slot.data.name}`;
-  document.getElementById('verifyPinInput').value = '';
-  document.getElementById('pinErrorMsg').classList.add('hidden');
-  document.getElementById('pinModal').classList.remove('hidden');
+function openPinModal(slotIdx) {
+  const user = slotsState[slotIdx].data;
+  safeSetValue('verifySlotIndex', slotIdx);
+  safeSetText('pinModalTitle', `PIN — ${user.name}`);
+  safeSetText('pinPromptLabel', `Masukkan 4 angka PIN untuk membuka Profile ${slotIdx + 1}`);
+  safeSetValue('verifyPinInput', '');
+  const errEl = document.getElementById('pinErrorMsg');
+  if (errEl) errEl.classList.add('hidden');
+  const modal = document.getElementById('pinModal');
+  if (modal) modal.classList.remove('hidden');
+  setTimeout(() => {
+    const inp = document.getElementById('verifyPinInput');
+    if (inp) inp.focus();
+  }, 100);
+  refreshIcons();
 }
 
 function submitVerifyPin(e) {
   e.preventDefault();
   const idx = parseInt(document.getElementById('verifySlotIndex').value);
-  const inputPin = document.getElementById('verifyPinInput').value;
+  const entered = document.getElementById('verifyPinInput').value.trim();
+  const user = slotsState[idx].data;
 
-  if (slotsState[idx].data.pin === inputPin) {
+  if (entered === user.pin) {
     closeModal('pinModal');
     loginIntoSlot(idx);
   } else {
-    document.getElementById('pinErrorMsg').classList.remove('hidden');
+    const errEl = document.getElementById('pinErrorMsg');
+    if (errEl) errEl.classList.remove('hidden');
   }
 }
 
-function closeModal(id) {
-  document.getElementById(id).classList.add('hidden');
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.classList.add('hidden');
 }
 
 function loginIntoSlot(idx) {
   activeUserSlot = idx;
   const user = slotsState[idx].data;
-  const heightInfo = user.height ? ` • ${user.height} cm` : '';
 
-  document.getElementById('headerAvatar').innerText = user.name.charAt(0).toUpperCase();
-  document.getElementById('headerUserName').innerText = user.name;
-  document.getElementById('headerUserMeta').innerText = `${user.gender} • ${user.weight} kg${heightInfo}`;
+  safeSetText('headerAvatar', user.name.charAt(0).toUpperCase());
+  safeSetText('headerUserName', user.name);
+  safeSetText('headerUserMeta', `${user.gender} • ${user.weight} kg • ${user.height} cm`);
 
-  document.getElementById('profileSlotTag').innerText = `PROFILE ${idx + 1}`;
-  document.getElementById('profileAvatarLg').innerText = user.name.charAt(0).toUpperCase();
-  document.getElementById('profileNameLg').innerText = user.name;
-  document.getElementById('profileDetailsLg').innerText = `${user.gender} • ${user.weight} kg${heightInfo}`;
+  safeSetText('profileSlotTag', `PROFILE ${idx + 1}`);
+  safeSetText('profileAvatarLg', user.name.charAt(0).toUpperCase());
+  safeSetText('profileNameLg', user.name);
+  safeSetText('profileDetailsLg', `${user.gender} • ${user.weight} kg • ${user.height} cm`);
 
-  document.getElementById('accountScreen').classList.remove('active');
-  document.getElementById('accountScreen').classList.add('hidden');
-  document.getElementById('mainApp').classList.remove('hidden');
+  if (user.metrics && user.metrics.length > 0) {
+    const latest = user.metrics[user.metrics.length - 1];
+    safeSetValue('logWeight', latest.weight || user.weight);
+    safeSetValue('logWaist', latest.waist || '');
+    safeSetValue('logChest', latest.chest || '');
+    safeSetValue('logArm', latest.arm || '');
+  } else {
+    safeSetValue('logWeight', user.weight);
+  }
 
-  updateStatsAndChart();
+  const accScreen = document.getElementById('accountScreen');
+  const mainApp = document.getElementById('mainApp');
+  if (accScreen) {
+    accScreen.classList.add('hidden');
+    accScreen.classList.remove('active');
+  }
+  if (mainApp) {
+    mainApp.classList.remove('hidden');
+  }
+
+  renderExerciseLibrary();
+  selectExercise(selectedExerciseId);
   if (typeof renderAIAdaptivePlan === 'function') renderAIAdaptivePlan();
+  updateStatsAndChart();
+  refreshIcons();
 }
 
 function switchAccount() {
   activeUserSlot = null;
-  renderSlots();
-  document.getElementById('mainApp').classList.add('hidden');
-  document.getElementById('accountScreen').classList.remove('hidden');
-  document.getElementById('accountScreen').classList.add('active');
+  const mainApp = document.getElementById('mainApp');
+  const accScreen = document.getElementById('accountScreen');
+  if (mainApp) mainApp.classList.add('hidden');
+  if (accScreen) {
+    accScreen.classList.remove('hidden');
+    accScreen.classList.add('active');
+  }
+  renderAccountSlots();
 }
 
-// ==================== NAVIGASI 4 TAB ====================
-function switchTab(tabName, btnEl) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+// ==================== 2. NAVIGASI 4 TAB ====================
+function switchTab(tabKey, btnEl) {
+  document.querySelectorAll('.tab-content').forEach(sec => sec.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
 
-  document.getElementById(`tab-${tabName}`).classList.add('active');
-  btnEl.classList.add('active');
+  const target = document.getElementById(`tab-${tabKey}`);
+  if (target) target.classList.add('active');
+  if (btnEl) btnEl.classList.add('active');
 
-  if (tabName === 'stats') {
+  if (tabKey === 'stats') {
     updateStatsAndChart();
-  } else if (tabName === 'program') {
-    if (typeof renderAIAdaptivePlan === 'function') renderAIAdaptivePlan();
+  } else if (tabKey === 'program' && activeUserSlot !== null && typeof renderAIAdaptivePlan === 'function') {
+    renderAIAdaptivePlan();
   }
 }
 
-// ==================== RESET DATA GRAFIK ====================
+// ==================== 3. TAB LATIHAN (14 GERAKAN + ILUSTRASI) ====================
+function filterExercises(catKey, chipEl) {
+  currentFilter = catKey;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  if (chipEl) chipEl.classList.add('active');
+  renderExerciseLibrary();
+}
+
+function renderExerciseLibrary() {
+  const grid = document.getElementById('exerciseGrid');
+  const supersetSelect = document.getElementById('supersetSecondExercise');
+  if (!grid || typeof EXERCISES_DATA === 'undefined') return;
+
+  grid.innerHTML = '';
+  if (supersetSelect) supersetSelect.innerHTML = '';
+
+  const filtered = EXERCISES_DATA.filter(ex => {
+    if (currentFilter === 'all') return true;
+    return ex.category === currentFilter;
+  });
+
+  safeSetText('exerciseCountBadge', `${filtered.length} Gerakan`);
+
+  const catBadgeMap = {
+    upper: 'Upper Body',
+    lower: 'Lower Body',
+    core: 'Core & Cardio'
+  };
+
+  filtered.forEach(ex => {
+    const catName = catBadgeMap[ex.category] || ex.category;
+    const subTarget = ex.categoryLabel && ex.categoryLabel.includes('•')
+      ? ex.categoryLabel.split('•')[1].trim()
+      : ex.modeLabel || '';
+
+    const item = document.createElement('div');
+    item.className = `ex-item ${ex.id === selectedExerciseId ? 'selected' : ''}`;
+    item.onclick = () => selectExercise(ex.id);
+    item.innerHTML = `
+      <div class="ex-item-top">
+        <span class="ex-type-dot">${catName}</span>
+      </div>
+      <h4>${ex.name}</h4>
+      <span>${subTarget}</span>
+    `;
+    grid.appendChild(item);
+  });
+
+  if (supersetSelect) {
+    EXERCISES_DATA.forEach(ex => {
+      const opt = document.createElement('option');
+      opt.value = ex.id;
+      opt.innerText = `${ex.name} (${ex.modeLabel || ex.category})`;
+      supersetSelect.appendChild(opt);
+    });
+  }
+}
+
+function selectExercise(exId) {
+  if (typeof EXERCISES_DATA === 'undefined') return;
+  selectedExerciseId = exId;
+  const ex = EXERCISES_DATA.find(item => item.id === exId) || EXERCISES_DATA[0];
+
+  renderExerciseLibrary();
+
+  safeSetText('selectedCategoryTag', ex.categoryLabel || ex.category.toUpperCase());
+  safeSetText('selectedExName', ex.name);
+  safeSetText('selectedExMode', ex.modeLabel || (ex.mode === 'timer' ? 'Penghitung Detik' : 'Penghitung Repetisi'));
+  safeSetText('exerciseCameraTip', ex.cameraTip || '');
+
+  const stepsBox = document.getElementById('exerciseStepsVisual');
+  if (stepsBox && Array.isArray(ex.steps)) {
+    stepsBox.innerHTML = ex.steps.map(step => `
+      <div class="step-frame">
+        ${step.svg}
+        <p>${step.label}</p>
+      </div>
+    `).join('');
+  }
+
+  const supersetSelect = document.getElementById('supersetSecondExercise');
+  if (supersetSelect && supersetSelect.value === ex.id) {
+    const other = EXERCISES_DATA.find(item => item.id !== ex.id);
+    if (other) supersetSelect.value = other.id;
+  }
+}
+
+function toggleSupersetField() {
+  const type = document.getElementById('setTypeSelect').value;
+  const box = document.getElementById('supersetPairBox');
+  if (!box) return;
+  if (type === 'Superset') {
+    box.classList.remove('hidden');
+  } else {
+    box.classList.add('hidden');
+  }
+}
+
+function launchCameraSession() {
+  const primaryEx = EXERCISES_DATA.find(e => e.id === selectedExerciseId) || EXERCISES_DATA[0];
+  const setType = document.getElementById('setTypeSelect').value;
+  const restSec = parseInt(document.getElementById('restDurationInput').value) || 60;
+
+  let secondaryEx = null;
+  if (setType === 'Superset') {
+    const secId = document.getElementById('supersetSecondExercise').value;
+    secondaryEx = EXERCISES_DATA.find(e => e.id === secId) || null;
+  }
+
+  startAICameraSession(primaryEx, setType, restSec, secondaryEx);
+}
+
+// ==================== 4. TAB STATISTIK & GRAFIK 30 HARI ====================
+function updateStatsAndChart() {
+  if (activeUserSlot === null) return;
+  const user = slotsState[activeUserSlot].data;
+  const workouts = user.workouts || [];
+
+  const today = new Date();
+  let startDate = user.cycleStartDate ? new Date(user.cycleStartDate) : new Date();
+  const daysPassed = Math.max(0, Math.floor((today - startDate) / (1000 * 60 * 60 * 24)));
+
+  if (user.cycleStartDate && daysPassed >= 30) {
+    user.cycleStartDate = today.toISOString().slice(0, 10);
+    user.workouts = [];
+    saveSlotsToStorage();
+  }
+
+  const activeDaysSet = new Set(workouts.map(w => w.date));
+  const activeDaysCount = activeDaysSet.size;
+  const totalReps = workouts.reduce((sum, w) => sum + (w.value || 0), 0);
+
+  safeSetText('goalProgressBadge', `${activeDaysCount} / 30 Hari`);
+  safeSetText('statTotalWorkouts', workouts.length);
+  safeSetText('statTotalReps', totalReps);
+  safeSetText('statStreak', `${activeDaysCount}/30`);
+
+  const consistencyPct = Math.min(100, Math.round((activeDaysCount / 30) * 100));
+  safeSetText('ringConsistencyPct', `${consistencyPct}%`);
+  safeSetText('ringConsistencyDesc', `${activeDaysCount} dari 30 hari target latihan tercapai.`);
+  renderDonutRing('consistencyRingChart', consistencyPct, '#166b0e', 'consistency');
+
+  const volumePct = Math.min(100, Math.round((totalReps / 1000) * 100));
+  safeSetText('ringVolumePct', `${volumePct}%`);
+  safeSetText('ringVolumeDesc', `${totalReps} dari 1.000 total repetisi bulanan.`);
+  renderDonutRing('volumeRingChart', volumePct, '#94bf4e', 'volume');
+
+  const weeklyUpper = [0, 0, 0, 0];
+  const weeklyLower = [0, 0, 0, 0];
+  const weeklyCore = [0, 0, 0, 0];
+
+  workouts.forEach(w => {
+    const wDate = new Date(w.date);
+    const diffDays = Math.max(0, Math.floor((wDate - startDate) / (1000 * 60 * 60 * 24)));
+    const weekIdx = Math.min(3, Math.floor(diffDays / 7));
+
+    if (w.category === 'upper' || w.category === 'Upper Body') {
+      weeklyUpper[weekIdx] += w.value;
+    } else if (w.category === 'lower' || w.category === 'Lower Body') {
+      weeklyLower[weekIdx] += w.value;
+    } else {
+      weeklyCore[weekIdx] += w.value;
+    }
+  });
+
+  renderThirtyDayChart(weeklyUpper, weeklyLower, weeklyCore);
+}
+
+function renderDonutRing(canvasId, pct, activeColor, key) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx || typeof Chart === 'undefined') return;
+
+  if (key === 'consistency' && consistencyRingInstance) consistencyRingInstance.destroy();
+  if (key === 'volume' && volumeRingInstance) volumeRingInstance.destroy();
+
+  const chart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [pct, Math.max(0, 100 - pct)],
+        backgroundColor: [activeColor, '#d2d6d2'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '74%',
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }
+    }
+  });
+
+  if (key === 'consistency') consistencyRingInstance = chart;
+  else volumeRingInstance = chart;
+}
+
+function renderThirtyDayChart(upperData, lowerData, coreData) {
+  const ctx = document.getElementById('thirtyDayChart');
+  if (!ctx || typeof Chart === 'undefined') return;
+
+  if (thirtyDayChartInstance) {
+    thirtyDayChartInstance.destroy();
+  }
+
+  thirtyDayChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
+      datasets: [
+        { label: 'Upper Body', data: upperData, backgroundColor: '#166b0e', borderRadius: 6 },
+        { label: 'Lower Body', data: lowerData, backgroundColor: '#94bf4e', borderRadius: 6 },
+        { label: 'Core & Cardio', data: coreData, backgroundColor: '#2b8cbe', borderRadius: 6 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#475547' } },
+        y: { beginAtZero: true, suggestedMax: 20, grid: { color: 'rgba(24, 34, 24, 0.08)' }, ticks: { font: { size: 11 }, color: '#475547' } }
+      }
+    }
+  });
+}
+
 function resetChartData() {
   if (activeUserSlot === null) return;
-  const yakin = confirm('Anda yakin ingin menghapus data?');
-  if (!yakin) return;
+  if (!confirm('Reset seluruh riwayat latihan 30 hari pada profile ini?')) return;
 
   const user = slotsState[activeUserSlot].data;
   user.workouts = [];
@@ -188,310 +579,44 @@ function resetChartData() {
   updateStatsAndChart();
 }
 
-// ==================== GRAFIK GROUPED BAR (MULAI MINGGU 1 DARI SESI PERTAMA) ====================
-function updateStatsAndChart() {
-  if (activeUserSlot === null) return;
-  const user = slotsState[activeUserSlot].data;
-  user.workouts = user.workouts || [];
-
-  // Tentukan tanggal mulai siklus 30 hari dari sesi latihan pertama pengguna
-  if (user.workouts.length > 0 && !user.cycleStartDate) {
-    const sortedDates = user.workouts.map(w => w.date).sort();
-    user.cycleStartDate = sortedDates[0];
-    saveSlotsToStorage();
-  }
-
-  // Jika siklus 30 hari sudah terlewati, otomatis mulai siklus baru
-  if (user.cycleStartDate) {
-    const startObj = new Date(user.cycleStartDate + 'T00:00:00');
-    const todayObj = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00');
-    const daysSinceStart = Math.floor((todayObj - startObj) / (1000 * 60 * 60 * 24));
-    if (daysSinceStart >= 30) {
-      user.workouts = [];
-      user.cycleStartDate = null;
-      saveSlotsToStorage();
-    }
-  }
-
-  const upperWeekly = [0, 0, 0, 0];
-  const lowerWeekly = [0, 0, 0, 0];
-  const coreWeekly = [0, 0, 0, 0];
-
-  let totalReps = 0;
-  const activeDaysSet = new Set();
-
-  if (user.cycleStartDate) {
-    const startObj = new Date(user.cycleStartDate + 'T00:00:00');
-
-    user.workouts.forEach(w => {
-      const wDate = new Date(w.date + 'T00:00:00');
-      const dayOffset = Math.max(0, Math.floor((wDate - startObj) / (1000 * 60 * 60 * 24)));
-
-      if (dayOffset < 30) {
-        const val = w.value || 0;
-        totalReps += val;
-        activeDaysSet.add(w.date);
-
-        // Hari 0-6 -> Minggu 1 (idx 0), Hari 7-13 -> Minggu 2 (idx 1), Hari 14-20 -> Minggu 3 (idx 2), Hari 21-29 -> Minggu 4 (idx 3)
-        let weekIdx = Math.floor(dayOffset / 7);
-        if (weekIdx > 3) weekIdx = 3;
-
-        if (w.category === 'upper') upperWeekly[weekIdx] += val;
-        else if (w.category === 'lower') lowerWeekly[weekIdx] += val;
-        else coreWeekly[weekIdx] += val;
-      }
-    });
-  }
-
-  const activeDaysCount = activeDaysSet.size;
-  const consistencyPct = Math.min(100, Math.round((activeDaysCount / 30) * 100));
-  const targetMonthlyVolume = 1000;
-  const volumePct = Math.min(100, Math.round((totalReps / targetMonthlyVolume) * 100));
-
-  document.getElementById('goalProgressBadge').innerText = `${activeDaysCount} / 30 Hari`;
-  document.getElementById('statTotalWorkouts').innerText = user.workouts.length;
-  document.getElementById('statTotalReps').innerText = totalReps;
-  document.getElementById('statStreak').innerText = `${activeDaysCount}/30`;
-
-  document.getElementById('ringConsistencyPct').innerText = `${consistencyPct}%`;
-  document.getElementById('ringConsistencyDesc').innerText = `${activeDaysCount} dari 30 hari target latihan tercapai.`;
-
-  document.getElementById('ringVolumePct').innerText = `${volumePct}%`;
-  document.getElementById('ringVolumeDesc').innerText = `${totalReps} dari ${targetMonthlyVolume} total repetisi bulanan.`;
-
-  const ctxBar = document.getElementById('thirtyDayChart').getContext('2d');
-  if (thirtyDayChartInstance) thirtyDayChartInstance.destroy();
-
-  thirtyDayChartInstance = new Chart(ctxBar, {
-    type: 'bar',
-    data: {
-      labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
-      datasets: [
-        {
-          label: 'Upper Body',
-          data: upperWeekly,
-          backgroundColor: '#166b0e',
-          borderRadius: 4,
-          barPercentage: 0.78,
-          categoryPercentage: 0.68
-        },
-        {
-          label: 'Lower Body',
-          data: lowerWeekly,
-          backgroundColor: '#94bf4e',
-          borderRadius: 4,
-          barPercentage: 0.78,
-          categoryPercentage: 0.68
-        },
-        {
-          label: 'Core & Cardio',
-          data: coreWeekly,
-          backgroundColor: '#2b8cbe',
-          borderRadius: 4,
-          barPercentage: 0.78,
-          categoryPercentage: 0.68
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { mode: 'index', intersect: false }
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 11, weight: '600' }, color: '#4a574a' }
-        },
-        y: {
-          beginAtZero: true,
-          suggestedMax: 20,
-          grid: { color: 'rgba(0,0,0,0.08)' },
-          ticks: { stepSize: 5, font: { size: 11 }, color: '#4a574a' }
-        }
-      }
-    }
-  });
-
-  const ctxRing1 = document.getElementById('consistencyRingChart').getContext('2d');
-  if (consistencyRingInstance) consistencyRingInstance.destroy();
-
-  consistencyRingInstance = new Chart(ctxRing1, {
-    type: 'doughnut',
-    data: {
-      datasets: [{
-        data: [consistencyPct, 100 - consistencyPct],
-        backgroundColor: ['#166b0e', '#d2d6d2'],
-        borderWidth: 0,
-        borderRadius: consistencyPct > 0 ? 10 : 0
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '74%',
-      plugins: { legend: { display: false }, tooltip: { enabled: false } }
-    }
-  });
-
-  const ctxRing2 = document.getElementById('volumeRingChart').getContext('2d');
-  if (volumeRingInstance) volumeRingInstance.destroy();
-
-  volumeRingInstance = new Chart(ctxRing2, {
-    type: 'doughnut',
-    data: {
-      datasets: [{
-        data: [volumePct, 100 - volumePct],
-        backgroundColor: ['#94bf4e', '#d2d6d2'],
-        borderWidth: 0,
-        borderRadius: volumePct > 0 ? 10 : 0
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '74%',
-      plugins: { legend: { display: false }, tooltip: { enabled: false } }
-    }
-  });
-
-  lucide.createIcons();
-}
-
-// ==================== PILIH GERAKAN & ILUSTRASI STEP ====================
-function filterExercises(category, chipEl) {
-  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-  chipEl.classList.add('active');
-  renderExercises(category);
-}
-
-function renderExercises(category) {
-  const grid = document.getElementById('exerciseGrid');
-  grid.innerHTML = '';
-
-  const filtered = category === 'all'
-    ? EXERCISES_DATA
-    : EXERCISES_DATA.filter(ex => ex.category === category);
-
-  document.getElementById('exerciseCountBadge').innerText = `${filtered.length} Gerakan`;
-
-  filtered.forEach(ex => {
-    const item = document.createElement('div');
-    item.className = `ex-item ${ex.id === selectedExerciseId ? 'selected' : ''}`;
-    item.onclick = () => selectExercise(ex.id);
-    item.innerHTML = `
-      <div class="ex-item-top">
-        <span class="ex-type-dot">${ex.mode === 'timer' ? 'TIMER' : 'REPS'}</span>
-      </div>
-      <h4>${ex.name}</h4>
-      <span>${ex.categoryLabel}</span>
-    `;
-    grid.appendChild(item);
-  });
-}
-
-function selectExercise(id) {
-  selectedExerciseId = id;
-  const ex = EXERCISES_DATA.find(item => item.id === id);
-  if (!ex) return;
-
-  document.querySelectorAll('.ex-item').forEach(el => {
-    el.classList.toggle('selected', el.querySelector('h4').innerText === ex.name);
-  });
-
-  document.getElementById('selectedCategoryTag').innerText = ex.categoryLabel;
-  document.getElementById('selectedExName').innerText = ex.name;
-  document.getElementById('selectedExMode').innerText = ex.modeLabel;
-  document.getElementById('exerciseCameraTip').innerText = ex.cameraTip;
-
-  const visualContainer = document.getElementById('exerciseStepsVisual');
-  visualContainer.innerHTML = ex.steps.map(step => `
-    <div class="step-frame">
-      ${step.svg}
-      <p>${step.label}</p>
-    </div>
-  `).join('');
-}
-
-function populateSupersetDropdown() {
-  const select = document.getElementById('supersetSecondExercise');
-  select.innerHTML = EXERCISES_DATA.map(ex => `<option value="${ex.id}">${ex.name}</option>`).join('');
-}
-
-function toggleSupersetField() {
-  const val = document.getElementById('setTypeSelect').value;
-  document.getElementById('supersetPairBox').classList.toggle('hidden', val !== 'Superset');
-}
-
 function saveBodyMetrics() {
   if (activeUserSlot === null) return;
-  const weight = parseFloat(document.getElementById('logWeight').value);
-  const waist = parseFloat(document.getElementById('logWaist').value);
-  const chest = parseFloat(document.getElementById('logChest').value);
-  const arm = parseFloat(document.getElementById('logArm').value);
-
   const user = slotsState[activeUserSlot].data;
-  const heightInfo = user.height ? ` • ${user.height} cm` : '';
-  if (weight) {
-    user.weight = weight;
-    document.getElementById('headerUserMeta').innerText = `${user.gender} • ${user.weight} kg${heightInfo}`;
-    document.getElementById('profileDetailsLg').innerText = `${user.gender} • ${user.weight} kg${heightInfo}`;
-  }
 
-  user.bodyMetrics.push({
-    date: new Date().toISOString().slice(0, 10),
-    weight: weight || user.weight,
-    waist: waist || null,
-    chest: chest || null,
-    arm: arm || null
+  const weight = parseFloat(document.getElementById('logWeight')?.value) || user.weight;
+  const waist = parseFloat(document.getElementById('logWaist')?.value) || 0;
+  const chest = parseFloat(document.getElementById('logChest')?.value) || 0;
+  const arm = parseFloat(document.getElementById('logArm')?.value) || 0;
+
+  user.weight = weight;
+  if (!user.metrics) user.metrics = [];
+  user.metrics.push({
+    date: new Date().toISOString().split('T')[0],
+    weight,
+    waist,
+    chest,
+    arm
   });
 
   saveSlotsToStorage();
-  alert('Catatan berat & ukuran lingkar tubuh berhasil disimpan!');
+  loginIntoSlot(activeUserSlot);
+  alert('Catatan berat & lingkar tubuh tersimpan!');
 }
 
-function shareProgressCard() {
-  if (activeUserSlot === null) return;
-  const user = slotsState[activeUserSlot].data;
-  const heightInfo = user.height ? ` / ${user.height} cm` : '';
-  const text = `🏋️ *LET'S MOVE — KARTU PROGRES*\nNama: ${user.name} (${user.gender})\nBerat / Tinggi: ${user.weight} kg${heightInfo}\nTotal Sesi 30 Hari: ${user.workouts.length} sesi\n\nAyo gerak bareng!`;
-  navigator.clipboard.writeText(text);
-  alert('Kartu progres disalin! Tinggal tempel (Paste) di chat WhatsApp.');
-}
-
-// ==================== LUNCURKAN SESI KAMERA AI ====================
-function launchCameraSession() {
-  const primaryEx = EXERCISES_DATA.find(item => item.id === selectedExerciseId);
-  if (!primaryEx) return;
-
-  const setType = document.getElementById('setTypeSelect').value;
-  const restSeconds = document.getElementById('restDurationInput').value;
-  let secondaryEx = null;
-
-  if (setType === 'Superset') {
-    const secondId = document.getElementById('supersetSecondExercise').value;
-    secondaryEx = EXERCISES_DATA.find(item => item.id === secondId);
-  }
-
-  lucide.createIcons();
-  startAICameraSession(primaryEx, setType, restSeconds, secondaryEx);
-}
-
-// ==================== EDIT DATA PROFILE ====================
+// ==================== 5. EDIT DATA PROFILE ====================
 function openEditProfileModal() {
   if (activeUserSlot === null) return;
   const user = slotsState[activeUserSlot].data;
 
-  document.getElementById('editName').value = user.name || '';
-  document.getElementById('editGender').value = user.gender || 'Pria';
-  document.getElementById('editWeight').value = user.weight || 60;
-  document.getElementById('editHeight').value = user.height || 170;
-  document.getElementById('editPin').value = user.pin || '';
+  safeSetValue('editName', user.name || '');
+  safeSetValue('editGender', user.gender || 'Pria');
+  safeSetValue('editWeight', user.weight || 60);
+  safeSetValue('editHeight', user.height || 170);
+  safeSetValue('editPin', user.pin || '');
 
-  document.getElementById('editProfileModal').classList.remove('hidden');
-  lucide.createIcons();
+  const modal = document.getElementById('editProfileModal');
+  if (modal) modal.classList.remove('hidden');
+  refreshIcons();
 }
 
 function submitEditProfile(e) {
@@ -516,7 +641,6 @@ function submitEditProfile(e) {
   user.height = newHeight;
   user.pin = newPin;
 
-  // Catat juga riwayat berat terbaru ke metrics agar sinkron
   if (!user.metrics) user.metrics = [];
   user.metrics.push({
     date: new Date().toISOString().split('T')[0],
@@ -525,7 +649,36 @@ function submitEditProfile(e) {
 
   saveSlotsToStorage();
   renderAccountSlots();
-  loginIntoSlot(activeUserSlot); // Refresh header, kartu ID, & hitung ulang nutrisi AI
+  loginIntoSlot(activeUserSlot);
   closeModal('editProfileModal');
   alert('Data profile & target nutrisi AI berhasil diperbarui!');
 }
+
+// ==================== 6. BAGIKAN KARTU PROGRES ====================
+function shareProgressCard() {
+  if (activeUserSlot === null) return;
+  const user = slotsState[activeUserSlot].data;
+  const totalReps = (user.workouts || []).reduce((s, w) => s + (w.value || 0), 0);
+  const activeDays = new Set((user.workouts || []).map(w => w.date)).size;
+
+  const text = `🏋️ *LET'S MOVE — PROGRES LATIHAN*\n` +
+    `Nama: ${user.name} (Profile ${activeUserSlot + 1})\n` +
+    `Profil: ${user.gender} • ${user.weight} kg • ${user.height} cm\n` +
+    `Konsistensi: ${activeDays}/30 Hari\n` +
+    `Total Volume: ${totalReps} Repetisi/Detik\n` +
+    `Tetap konsisten setiap hari!`;
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Kartu progres berhasil disalin! Silakan tempel (Paste) di WhatsApp.');
+    });
+  } else {
+    alert(text);
+  }
+}
+
+// Inisialisasi saat halaman dimuat
+document.addEventListener('DOMContentLoaded', () => {
+  renderAccountSlots();
+  refreshIcons();
+});
