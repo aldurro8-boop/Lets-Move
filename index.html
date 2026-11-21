@@ -20,7 +20,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
 
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=3" />
 </head>
 <body>
 
@@ -34,8 +34,43 @@
       </div>
 
       <div id="slotsGrid" class="slots-grid"></div>
+
+      <!-- Tombol Teks Kecil Khusus Developer -->
+      <div class="dev-manage-footer">
+        <button type="button" class="btn-dev-link" onclick="openDevAuthModal()">Kelola Akun</button>
+      </div>
     </div>
   </section>
+
+  <!-- Modal PIN Developer (6 Angka) -->
+  <div id="devAuthModal" class="modal-backdrop hidden">
+    <div class="modal-card small">
+      <div class="modal-header">
+        <h3>Akses Developer</h3>
+        <button class="icon-btn" onclick="closeModal('devAuthModal')"><i data-lucide="x"></i></button>
+      </div>
+      <form onsubmit="submitDevAuth(event)">
+        <div class="form-group">
+          <label>Masukkan 6 angka PIN Developer untuk mengelola akun</label>
+          <input type="password" id="devPinInput" required pattern="[0-9]{6}" maxlength="6" inputmode="numeric" class="pin-dev-input" placeholder="••••••" />
+        </div>
+        <p id="devPinErrorMsg" class="error-text hidden">PIN Developer salah.</p>
+        <button type="submit" class="btn-primary full-width">Masuk Panel Kelola</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Panel Kelola Akun (Reset PIN & Hapus Akun) -->
+  <div id="devManageModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Kelola Akun Profile</h3>
+        <button class="icon-btn" onclick="closeModal('devManageModal')"><i data-lucide="x"></i></button>
+      </div>
+      <p class="muted-text" style="margin-bottom:12px;">Reset PIN user yang lupa atau hapus slot akun yang tidak terpakai.</p>
+      <div id="devSlotsList" class="dev-slots-list"></div>
+    </div>
+  </div>
 
   <!-- Modal Buat Akun / Klaim Profile -->
   <div id="claimModal" class="modal-backdrop hidden">
@@ -452,6 +487,6 @@
   <script src="js/data.js"></script>
   <script src="js/ai-camera.js"></script>
   <script src="js/ai-planner.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=6"></script>
 </body>
 </html>
